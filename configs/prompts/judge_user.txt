@@ -1,0 +1,10 @@
+User request:
+{prompt}
+
+Response A:
+{response_a}
+
+Response B:
+{response_b}
+
+Which response is better? Answer with Verdict: A or Verdict: B only.

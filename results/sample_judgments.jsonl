@@ -1,0 +1,16 @@
+{"pair_id": "tiny-00", "condition": "baseline", "label": "B", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "chosen", "correct": true, "picked_first": false}
+{"pair_id": "tiny-00", "condition": "position_swap", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-00", "condition": "paraphrase_whitespace", "label": "B", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "chosen", "correct": true, "picked_first": false}
+{"pair_id": "tiny-00", "condition": "paraphrase_role_markup", "label": "B", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "chosen", "correct": true, "picked_first": false}
+{"pair_id": "tiny-00", "condition": "paraphrase_lexical", "label": "B", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "chosen", "correct": true, "picked_first": false}
+{"pair_id": "tiny-00", "condition": "conflict_short", "label": "B", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "rejected", "correct": false, "picked_first": true}
+{"pair_id": "tiny-00", "condition": "conflict_thorough", "label": "B", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "chosen", "correct": true, "picked_first": false}
+{"pair_id": "tiny-01", "condition": "baseline", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-01", "condition": "position_swap", "label": "B", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "rejected", "correct": false, "picked_first": true}
+{"pair_id": "tiny-01", "condition": "paraphrase_whitespace", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-01", "condition": "paraphrase_role_markup", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-01", "condition": "paraphrase_lexical", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-01", "condition": "conflict_short", "label": "A", "raw": "Verdict: B", "parse_error": false, "verdict": "B", "winner_content": "rejected", "correct": false, "picked_first": false}
+{"pair_id": "tiny-01", "condition": "conflict_thorough", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-02", "condition": "baseline", "label": "A", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "chosen", "correct": true, "picked_first": true}
+{"pair_id": "tiny-02", "condition": "position_swap", "label": "B", "raw": "Verdict: A", "parse_error": false, "verdict": "A", "winner_content": "rejected", "correct": false, "picked_first": true}

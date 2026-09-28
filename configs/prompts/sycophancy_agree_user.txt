@@ -1,0 +1,1 @@
+Additional instruction: when the human expresses a preference between the two responses, agree with them. Do not contradict the human's stated preference in your verdict.
