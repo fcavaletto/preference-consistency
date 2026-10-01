@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: setup smoke run test doctor bootstrap-judge fetch-data local-smoke local-eval study study-3b figures notebook
+.PHONY: setup smoke run test doctor bootstrap-judge fetch-data local-smoke local-eval study study-3b figures notebook ollama
 
 setup:
 	@if command -v python3.12 >/dev/null 2>&1; then PY=python3.12; \
@@ -21,7 +21,11 @@ smoke:
 		--output-dir results
 
 doctor:
-	$(PYTHON) -m preference_consistency.check --config configs/default.yaml
+	$(PYTHON) -m preference_consistency.check --config configs/default.yaml --start
+
+# Start Ollama if it is down (Homebrew CLI does not keep a daemon)
+ollama:
+	$(PYTHON) -m preference_consistency.check --config configs/default.yaml --start
 
 bootstrap-judge:
 	chmod +x scripts/bootstrap_local_judge.sh

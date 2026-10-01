@@ -27,7 +27,7 @@ make bootstrap-judge   # brew install ollama if needed; start serve; pull qwen2.
 make doctor            # must print: Default judge ready: qwen2.5:7b
 ```
 
-Keep the daemon running: open the **Ollama app**, or leave `ollama serve` in a terminal. Homebrew’s CLI install does not always keep a background service.
+Keep the daemon running: open the **Ollama app**, or leave `ollama serve` in a terminal. Homebrew’s CLI install does not always keep a background service. From this repo you can also run `make doctor` / `make ollama`, which start `ollama serve` if port 11434 is down. The teaching notebook does the same on its setup cell.
 
 Default model tag is set in [`configs/default.yaml`](../configs/default.yaml) (`qwen2.5:7b`, temperature `0`, fixed seed). The matched 3B comparison uses `llama3.2:3b`, which you can pull with `ollama pull llama3.2:3b` if it is not already local.
 
