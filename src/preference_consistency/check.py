@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
+import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -28,12 +31,46 @@ def load_model_cfg(config_path: Path) -> dict[str, Any]:
     return cfg["model"]
 
 
-def doctor(config: str = "configs/default.yaml") -> int:
+def ensure_ollama(host: str = "http://127.0.0.1:11434", wait_s: float = 10.0) -> bool:
+    """Return True if Ollama answers, starting ``ollama serve`` once if needed.
+
+    Homebrew's CLI install does not keep a daemon up. Starting a detached
+    ``ollama serve`` is enough for local notebook / CLI use.
+    """
+    try:
+        list_ollama_models(host, timeout_s=2.0)
+        return True
+    except RuntimeError:
+        pass
+    if not shutil.which("ollama"):
+        return False
+    log_path = Path("/tmp/ollama-serve.log")
+    log_handle = log_path.open("ab", buffering=0)
+    subprocess.Popen(
+        ["ollama", "serve"],
+        stdout=log_handle,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    print(f"Started `ollama serve` in the background (log: {log_path})")
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        try:
+            list_ollama_models(host, timeout_s=1.0)
+            return True
+        except RuntimeError:
+            time.sleep(0.25)
+    return False
+
+
+def doctor(config: str = "configs/default.yaml", *, start_if_needed: bool = False) -> int:
     root = repo_root()
     path = Path(config) if Path(config).is_absolute() else root / config
     model_cfg = load_model_cfg(path)
     host = str(model_cfg["host"])
     model = str(model_cfg["name"])
+    if start_if_needed:
+        ensure_ollama(host)
     try:
         names = list_ollama_models(host)
     except RuntimeError as exc:
@@ -54,9 +91,14 @@ def doctor(config: str = "configs/default.yaml") -> int:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Check local Ollama judge")
     parser.add_argument("--config", default="configs/default.yaml")
+    parser.add_argument(
+        "--start",
+        action="store_true",
+        help="Start `ollama serve` in the background if the daemon is down",
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    raise SystemExit(doctor(args.config))
+    raise SystemExit(doctor(args.config, start_if_needed=bool(args.start)))
 
 
 if __name__ == "__main__":
