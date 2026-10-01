@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: setup smoke run test doctor bootstrap-judge fetch-data local-smoke local-eval
+.PHONY: setup smoke run test doctor bootstrap-judge fetch-data local-smoke local-eval study study-3b figures notebook
 
 setup:
 	@if command -v python3.12 >/dev/null 2>&1; then PY=python3.12; \
@@ -32,20 +32,46 @@ bootstrap-judge:
 fetch-data:
 	$(PYTHON) -m preference_consistency.fetch_data --config configs/default.yaml
 
-# Real HH (n=50): baseline + position swap + sycophancy
+# Real HH (n=50): baseline, swap, sycophancy, verbosity
 local-smoke:
 	$(PYTHON) -m preference_consistency.run_eval \
 		--config configs/default.yaml \
 		--n-samples 50 \
-		--conditions baseline position_swap sycophancy_prefer_a sycophancy_prefer_b sycophancy_agree_user \
+		--conditions baseline position_swap sycophancy_prefer_a sycophancy_prefer_b sycophancy_agree_user sycophancy_user_prefers_a verbosity_bloat_a verbosity_bloat_b \
 		--output-dir results/local
 
-# Full MVP conditions on HH n=50
+# Full condition set on HH n=50
 local-eval:
 	$(PYTHON) -m preference_consistency.run_eval \
 		--config configs/default.yaml \
 		--n-samples 50 \
 		--output-dir results/local
+
+# Published study: Qwen2.5 7B, n=100, all conditions
+study:
+	$(PYTHON) -m preference_consistency.run_eval \
+		--config configs/default.yaml \
+		--n-samples 100 \
+		--output-dir results/qwen2.5-7b
+
+# Same 100 pairs and conditions on the previous 3B judge
+study-3b:
+	$(PYTHON) -m preference_consistency.run_eval \
+		--config configs/default.yaml \
+		--model llama3.2:3b \
+		--n-samples 100 \
+		--output-dir results/llama3.2-3b-matched
+
+figures:
+	$(PYTHON) -m preference_consistency.plots \
+		--judgments results/qwen2.5-7b/judgments.jsonl \
+		--out results/qwen2.5-7b/figures \
+		--title "qwen2.5:7b" \
+		--compare results/llama3.2-3b-matched/judgments.jsonl \
+		--compare-label "llama3.2:3b"
+
+notebook:
+	$(PYTHON) scripts/build_walkthrough_nb.py
 
 run:
 	$(PYTHON) -m preference_consistency.run_eval \

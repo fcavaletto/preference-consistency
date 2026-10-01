@@ -127,7 +127,7 @@ def preflight_ollama(host: str, model: str, timeout_s: float = 5.0) -> list[str]
         raise RuntimeError(
             f"Ollama is running but model {model!r} is not installed.\n"
             f"Installed: {names or '(none)'}\n"
-            f"Pull the default judge (about 2 GB):\n  ollama pull {model}"
+            f"Pull it with:\n  ollama pull {model}"
         )
     return names
 
@@ -209,7 +209,7 @@ def parse_verdict(raw: str, pattern: str) -> Completion:
     if match:
         return Completion(text=raw, verdict=match.group(1).upper(), parse_error=False)
 
-    # Last non-empty line is exactly A or B (common 3B failure mode)
+    # Last non-empty line is exactly A or B (common small-model failure mode)
     lines = [ln.strip().strip("*`\"") for ln in raw.strip().splitlines() if ln.strip()]
     if lines and re.fullmatch(r"[AB]", lines[-1], flags=re.IGNORECASE):
         return Completion(text=raw, verdict=lines[-1].upper(), parse_error=False)

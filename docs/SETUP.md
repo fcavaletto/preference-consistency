@@ -6,7 +6,8 @@ Install the Python package, a local Ollama judge, and (by default) a cached slic
 
 - macOS with Apple Silicon recommended (works anywhere Ollama runs)
 - **Python 3.11+** (Homebrew: `brew install python@3.12`)
-- Disk: ~2 GB for `llama3.2:3b`, plus tens of MB for the HH train gzip on first fetch
+- Disk: ~5 GB for `qwen2.5:7b`, plus tens of MB for the HH train gzip on first fetch
+- Memory: a machine with about 16 GB RAM is comfortable for a 7B Q4 judge (the 3B model still works for the scale comparison)
 - Network for first-time model pull and HH download
 
 ## 1. Clone and create the venv
@@ -22,13 +23,13 @@ This creates `.venv` and installs the package in editable mode (`httpx`, `pyyaml
 ## 2. Local judge (Ollama)
 
 ```bash
-make bootstrap-judge   # brew install ollama if needed; start serve; pull llama3.2:3b
-make doctor            # must print: Default judge ready: llama3.2:3b
+make bootstrap-judge   # brew install ollama if needed; start serve; pull qwen2.5:7b
+make doctor            # must print: Default judge ready: qwen2.5:7b
 ```
 
 Keep the daemon running: open the **Ollama app**, or leave `ollama serve` in a terminal. Homebrew’s CLI install does not always keep a background service.
 
-Default model tag is set in [`configs/default.yaml`](../configs/default.yaml) (`llama3.2:3b`, temperature `0`, fixed seed). Pulling larger models is optional and not required for the walkthrough.
+Default model tag is set in [`configs/default.yaml`](../configs/default.yaml) (`qwen2.5:7b`, temperature `0`, fixed seed). The matched 3B comparison uses `llama3.2:3b`, which you can pull with `ollama pull llama3.2:3b` if it is not already local.
 
 ## 3. Preference data (HH-RLHF by default)
 
@@ -36,11 +37,11 @@ Default model tag is set in [`configs/default.yaml`](../configs/default.yaml) (`
 make fetch-data
 ```
 
-This downloads Anthropic **HH-RLHF** `helpful-base` train ([Bai et al. 2022](https://arxiv.org/abs/2204.05862); dataset on Hugging Face as `Anthropic/hh-rlhf`), reservoir-samples **50** pairs (seed 42), randomizes A/B slots, and caches:
+This downloads Anthropic **HH-RLHF** `helpful-base` train ([Bai et al. 2022](https://arxiv.org/abs/2204.05862); dataset on Hugging Face as `Anthropic/hh-rlhf`), reservoir-samples the config default (**200** pairs, seed 42), randomizes A/B slots, and caches:
 
-`data/cache/hh_subset_helpful-base_seed42_n50.jsonl`
+`data/cache/hh_subset_helpful-base_seed42_n200.jsonl`
 
-Later runs reuse the cache (no re-download). To rebuild, delete that file and run `make fetch-data` again.
+`make study` uses its own cache of **100** pairs (`hh_subset_helpful-base_seed42_n100.jsonl`). Later runs reuse the matching cache. To rebuild, delete that file and fetch again.
 
 **Offline / CI without HH:** use the bundled synthetic fixture:
 
@@ -71,9 +72,17 @@ make fetch-data
 make local-smoke
 ```
 
-`local-smoke` runs n=50 HH pairs with **baseline**, **position swap**, and **sycophancy** conditions → `results/local/`.
+`local-smoke` runs n=50 HH pairs with baseline, position swap, sycophancy, and verbosity → `results/local/`.
 
-Full condition set (also paraphrases + conflicting instructions):
+Published study (this is the run the walkthrough charts use):
+
+```bash
+make study       # qwen2.5:7b, n=100, all conditions → results/qwen2.5-7b/
+make study-3b    # same pairs and conditions, llama3.2:3b → results/llama3.2-3b-matched/
+make figures     # Wilson-interval charts, including the 3B vs 7B comparison
+```
+
+Shorter full condition set at n=50:
 
 ```bash
 make local-eval
@@ -84,12 +93,16 @@ make local-eval
 | Target | What it does |
 |---|---|
 | `make setup` | venv + install |
-| `make bootstrap-judge` | Ollama + pull 3B |
+| `make bootstrap-judge` | Ollama + pull `qwen2.5:7b` |
 | `make doctor` | check Ollama + model |
 | `make fetch-data` | HH subset cache only |
 | `make smoke` | fixture + dry-run (offline) |
-| `make local-smoke` | HH n=50, baseline/swap/sycophancy |
+| `make local-smoke` | HH n=50, baseline/swap/sycophancy/verbosity |
 | `make local-eval` | HH n=50, all conditions |
+| `make study` | published 7B run, HH n=100 |
+| `make study-3b` | matched 3B run, same 100 pairs |
+| `make figures` | charts under `results/qwen2.5-7b/figures/` |
+| `make notebook` | regenerate the teaching notebook |
 | `make run` | HH n=200, all conditions |
 | `make test` | pytest (no network) |
 
@@ -98,7 +111,7 @@ make local-eval
 | Symptom | Fix |
 |---|---|
 | `Cannot reach Ollama` | Start the app or `ollama serve`; then `make doctor` |
-| Model missing | `ollama pull llama3.2:3b` |
+| Model missing | `ollama pull qwen2.5:7b` |
 | HH download fails | Check network / Hugging Face access; retry `make fetch-data` |
 | Many `parse_error` | Inspect raw text in `judgments.jsonl`; try `json_schema: false` in config |
 | Want offline only | `--fixture` on the CLI, or `make smoke` |
@@ -107,6 +120,6 @@ make local-eval
 
 - No paid APIs  
 - No reward-model training  
-- Default judge is a small prompted model, not GPT-4  
+- Default judge is a prompted 7B model, not a flagship API model  
 
 When setup succeeds, open the teaching notebook and stay there for concepts and experiments.

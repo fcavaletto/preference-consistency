@@ -1,6 +1,6 @@
 seed: 42
-n_samples: 50
-n_samples_max: 500
+n_samples: 200
+n_samples_max: 5000
 
 data:
   # download: Anthropic HH-RLHF helpful-base (default; cached after first fetch)
@@ -14,11 +14,11 @@ data:
 
 model:
   backend: ollama
-  name: llama3.2:3b
+  name: qwen2.5:7b
   host: http://127.0.0.1:11434
   temperature: 0.0
   seed: 42
-  timeout_s: 180
+  timeout_s: 300
   num_predict: 64
   json_schema: true
 
@@ -42,6 +42,13 @@ conditions:
     prefer_a: configs/prompts/sycophancy_prefer_a.txt
     prefer_b: configs/prompts/sycophancy_prefer_b.txt
     agree_user: configs/prompts/sycophancy_agree_user.txt
+  # Same pressure, but in the user message (closer to Perez et al. than a system instruction)
+  sycophancy_user:
+    prefers_a: configs/prompts/sycophancy_user_prefers_a.txt
+  # Append a no-new-facts restatement to one slot (simplified Zheng verbosity attack)
+  verbosity:
+    - bloat_a
+    - bloat_b
 
 output:
   judgments_name: judgments.jsonl

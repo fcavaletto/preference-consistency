@@ -44,6 +44,29 @@ PARAPHRASERS = {
 }
 
 
+BLOAT_NOTE = "To restate the same points without adding new information: "
+
+
+def bloat_text(text: str) -> str:
+    """Repeat a reply after a marker that adds no new facts.
+
+    This is a simplified stand-in for Zheng et al.'s repetitive-list attack:
+    the extra words are the same claims again, not a better answer.
+    """
+    body = text.strip()
+    if not body:
+        return body
+    return f"{body}\n\n{BLOAT_NOTE}{body}"
+
+
+def apply_verbosity(pair: PreferencePair, name: str) -> PreferencePair:
+    if name == "bloat_a":
+        return replace(pair, response_a=bloat_text(pair.response_a))
+    if name == "bloat_b":
+        return replace(pair, response_b=bloat_text(pair.response_b))
+    raise KeyError(name)
+
+
 def apply_paraphrase(pair: PreferencePair, name: str) -> PreferencePair:
     fn = PARAPHRASERS[name]
     return replace(

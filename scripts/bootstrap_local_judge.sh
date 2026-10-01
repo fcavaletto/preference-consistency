@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Install Ollama (if needed), start it, pull the default 3B judge.
+# Install Ollama (if needed), start it, pull the default 7B judge.
 set -euo pipefail
-MODEL="${MODEL:-llama3.2:3b}"
+MODEL="${MODEL:-qwen2.5:7b}"
 HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 
 if ! command -v ollama >/dev/null 2>&1; then
@@ -30,7 +30,7 @@ if ! curl -sf "${HOST}/api/tags" >/dev/null; then
   exit 1
 fi
 
-echo "Pulling ${MODEL} (about 2 GB, one-time)…"
+echo "Pulling ${MODEL} (about 5 GB for qwen2.5:7b, one-time)…"
 ollama pull "${MODEL}"
 echo "Local judge ready: ${MODEL}"
 echo "Keep the daemon up: open the Ollama app, or leave \`ollama serve\` running in a terminal."

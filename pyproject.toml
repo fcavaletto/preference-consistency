@@ -1,7 +1,7 @@
 [project]
 name = "preference-consistency"
-version = "0.1.0"
-description = "Local LLM-as-judge preference consistency eval (HH-RLHF slice)."
+version = "0.2.0"
+description = "Local LLM-as-judge preference consistency eval and teaching lab (HH-RLHF slice)."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ipykernel>=6.29"]
+dev = ["pytest>=8.0", "ipykernel>=6.29", "matplotlib>=3.8", "ipywidgets>=8.1", "nbclient>=0.10"]
 
 [project.scripts]
 preference-consistency = "preference_consistency.run_eval:main"

@@ -17,4 +17,4 @@ results/**/*.jsonl
 !results/sample_judgments.jsonl
 !results/local/sample_judgments.jsonl
 *.log
-.pytest_cache/
+.mplconfig/
