@@ -95,13 +95,16 @@ This repository measures measurement stability. It does not train the assistant 
 | `chosen` / `rejected` | The reply a human preferred, and the other one |
 | Slot / letter | Where a reply sits in the prompt: **A** or **B** |
 | Content | Which text won: `chosen` or `rejected`, regardless of letter |
+| P(A) | Share of baseline judgments that printed letter A (slot diagnostic, not accuracy) |
 | Position bias | The judge’s preference for a slot, not for the text in it |
 | Flip | Baseline and swapped order disagree on **content** |
+| Coverage | Share of pairs with the same content in both orders (= 1 − flip rate) |
+| Consistent + wrong | Both orders agree on `rejected` — order-stable but incorrect |
 | Verbosity bias | The judge prefers a reply because it is longer, not because it is better |
 | Sycophancy | The judge moves to agree with a stated preference |
 | Cohen’s κ | Agreement adjusted for chance agreement |
 | Wilson interval | A 95% confidence interval for a binomial proportion |
-| Dual-order consistency | Declare a win only if both orders pick the same content |
+| Dual-order consistency | Declare a win only on coverage; flips are ties; stable-wrong pairs remain |
 
 The verdict letter names a slot. Accuracy and flip rate are defined on content identity: which text won, not which letter was printed."""
     ),
@@ -578,9 +581,11 @@ else:
 
 — Wang et al., abstract
 
-**Operational definition.** Judge each pair under baseline order. Swap A and B (and `label` with them). Judge again. A **flip** is disagreement on content identity, not a change of letter. Fixed: pair texts and rubric. Varied: presentation order only.
+**Protocol.** Judge each pair once. Swap the two replies (and move `label` with the chosen text). Judge again. Same texts and rubric; only presentation order changes.
 
-**Borrow boundary.** Source papers use MT-Bench or API-model bake-offs. This study uses HH helpfulness pairs. Compare effect direction and read Wilson intervals; do not equate point estimates with theirs."""
+Recall from §6: the **letter** is the slot (`A`/`B`); **content** is which text won (`chosen`/`rejected`). A content-faithful judge may change its letter after a swap. That is expected. A **flip** means the two orders disagree on content.
+
+**Borrow boundary.** Source papers use MT-Bench or API bake-offs; this study uses HH helpfulness pairs. Compare direction and intervals, not point estimates."""
     ),
     code(
         """demo_pair = pairs[0]
@@ -589,7 +594,41 @@ print("Human-preferred slot before swap:", demo_pair.label)
 print("Human-preferred slot after swap: ", sw.label)
 print("\\nResponse A before swap starts:", demo_pair.response_a[:180].replace("\\n", " "))
 print("Response A after swap starts: ", sw.response_a[:180].replace("\\n", " "))
-print("\\nThe text formerly in B now occupies A. Content-consistent judging changes the letter.")"""
+print("\\nAfter the swap, the text that was in B now occupies A.")
+print("If the judge still prefers that same text, the letter changes and content does not — not a flip.")"""
+    ),
+    md(
+        """### What to measure (two different questions)
+
+**Question A — slot preference (diagnostic).** On baseline calls only, how often does the judge print letter A?
+
+- Write this as **P(A)** = (baseline verdicts equal to A) / (baseline judgments).
+- P(A) ≈ 0.5 means the judge is not glued to one slot. P(A) near 0 or 1 is a stuck-letter baseline (important later for sycophancy).
+- P(A) is **not** accuracy. It ignores whether A held the chosen text.
+
+**Question B — order stability (the research question).** For each pair, compare content under baseline order to content after the swap.
+
+| Outcome for one pair | Baseline content | Swap content | Name |
+|---|---|---|---|
+| Same text wins both times, and it is `chosen` | `chosen` | `chosen` | consistent + correct |
+| Same text wins both times, and it is `rejected` | `rejected` | `rejected` | consistent + wrong |
+| Different texts win | e.g. `chosen` | `rejected` | **flip** (treat as a tie) |
+
+Those three outcomes partition the sample:
+
+```text
+all pairs  =  flips  +  consistent+correct  +  consistent+wrong
+```
+
+Definitions that follow from the partition:
+
+- **Flip rate** = (# flips) / n
+- **Coverage** (dual-order agreement) = (# consistent) / n = 1 − flip rate  
+  = share of pairs where Zheng’s rule declares a winner
+- **Accuracy among consistent pairs** = (# consistent+correct) / (# consistent)  
+  = among declared winners, how often the winner matches the human label
+
+Coverage counts *both* consistent+correct and consistent+wrong. Dual-order filtering removes order-unstable pairs; it does **not** remove stably wrong ones. That is why a separate accuracy-among-consistent number is required."""
     ),
     code(
         """if qwen_df is None:
@@ -598,71 +637,98 @@ else:
     ids = list(qwen_df.loc[qwen_df.condition == "baseline", "pair_id"].head(N_LIVE))
     base = qwen_df[(qwen_df.condition == "baseline") & (qwen_df.pair_id.isin(ids))].set_index("pair_id")
     swap = qwen_df[(qwen_df.condition == "position_swap") & (qwen_df.pair_id.isin(ids))].set_index("pair_id")
-    print(f"{'pair_id':<12} {'base_letter':>11} {'base_content':>12} {'swap_letter':>11} {'swap_content':>12} {'flip':>5}")
+    print("Sample of pairs — compare content columns to decide flip vs consistent")
+    print(f"{'pair_id':<12} {'base_letter':>11} {'base_content':>12} {'swap_letter':>11} {'swap_content':>12} {'outcome':>18}")
     for pid in ids:
         b, s = base.loc[pid], swap.loc[pid]
-        flip = b.winner_content != s.winner_content
-        print(f"{pid:<12} {str(b.verdict):>11} {str(b.winner_content):>12} {str(s.verdict):>11} {str(s.winner_content):>12} {'YES' if flip else 'no':>5}")
+        if b.winner_content != s.winner_content:
+            outcome = "flip (tie)"
+        elif b.winner_content == "chosen":
+            outcome = "consistent+correct"
+        else:
+            outcome = "consistent+wrong"
+        print(f"{pid:<12} {str(b.verdict):>11} {str(b.winner_content):>12} {str(s.verdict):>11} {str(s.winner_content):>12} {outcome:>18}")
+
     stats = position_stats(qwen_df)
     pa = letter_rate(qwen_df[qwen_df.condition == "baseline"], "A")
-    print("\\nFull sample (7B)")
-    print("  P(A) baseline:     ", fmt_rate(pa))
-    print("  flip rate:         ", fmt_rate(stats["flip"]))
-    print("  dual-order agree:  ", fmt_rate(stats["agreement"]))
-    print("  Cohen κ (content): ", round(stats["kappa"], 3))
+    n = stats["agreement"].n
+    n_flip = stats["flip"].k
+    n_right = stats["accuracy_consistent"].k
+    n_wrong = stats["n_consistent"] - n_right
+    print("\\n--- Question A: slot diagnostic (baseline letters only) ---")
+    print("  P(A) =", fmt_rate(pa))
+    print("\\n--- Question B: order-stability partition (all pairs) ---")
+    print(f"  flips (ties):           {n_flip}/{n}   {fmt_rate(stats['flip'])}")
+    print(f"  consistent + correct:   {n_right}/{n}   {fmt_rate(rate(n_right, n))}")
+    print(f"  consistent + wrong:     {n_wrong}/{n}   {fmt_rate(rate(n_wrong, n))}")
+    print(f"  check sum:              {n_flip + n_right + n_wrong}/{n}")
     print()
-    print("Interpretation: the flip-rate interval states how often order changed the winning text.")
-    print("It does not by itself state accuracy against the human label (see dual-order below).")"""
+    print("  coverage = (correct + wrong) / n =", fmt_rate(stats["agreement"]),
+          "  (= 1 − flip rate)")
+    print("  accuracy among consistent = correct / coverage =",
+          fmt_rate(stats["accuracy_consistent"]))
+    print("  Cohen κ on content (chance-adjusted agreement):", round(stats["kappa"], 3))"""
     ),
     code(
         """if qwen_df is not None:
     stats = position_stats(qwen_df)
-    pa = letter_rate(qwen_df[qwen_df.condition == "baseline"], "A")
-    flip = stats["flip"]
-    agree = stats["agreement"]
-    labels = ["P(A) baseline", "Flip rate", "Dual-order agree"]
-    rates = [pa, flip, agree]
-    fig, ax = plt.subplots(figsize=(6.5, 3.8))
-    ax.bar(range(3), [r.point for r in rates], color=["#1F4E79", "#C47B2B", "#1F4E79"], width=0.65, zorder=2)
-    yerr = [
-        [max(0.0, r.point - r.ci_low) for r in rates],
-        [max(0.0, r.ci_high - r.point) for r in rates],
-    ]
-    ax.errorbar(range(3), [r.point for r in rates], yerr=yerr, fmt="none", ecolor="#222", elinewidth=1, capsize=3, zorder=3)
+    n = stats["agreement"].n
+    n_flip = stats["flip"].k
+    n_right = stats["accuracy_consistent"].k
+    n_wrong = stats["n_consistent"] - n_right
+    # Partition chart: three shares of the same n (sum to 1).
+    labels = ["Flip\\n(tie)", "Consistent\\n+ correct", "Consistent\\n+ wrong"]
+    counts = [n_flip, n_right, n_wrong]
+    points = [c / n for c in counts]
+    colors = ["#C47B2B", "#1F4E79", "#7A7A7A"]
+    fig, ax = plt.subplots(figsize=(6.8, 3.8))
+    ax.bar(range(3), points, color=colors, width=0.65, zorder=2)
     ax.set_xticks(range(3), labels)
     ax.set_ylim(0, 1)
-    ax.set_ylabel("Rate")
-    ax.set_title("qwen2.5:7b — position: baseline letter rate and order stability", loc="left", fontsize=11)
+    ax.set_ylabel("Share of pairs")
+    ax.set_title("qwen2.5:7b — dual-order partition of all pairs", loc="left", fontsize=11)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    for i, r in enumerate(rates):
-        ax.text(i, r.point + 0.03, f"{r.point:.2f}", ha="center", va="bottom", fontsize=10)
+    for i, (c, p) in enumerate(zip(counts, points)):
+        ax.text(i, p + 0.03, f"{c}/{n}\\n{p:.2f}", ha="center", va="bottom", fontsize=10)
     fig.tight_layout()
-    show_fig(fig)"""
+    show_fig(fig)
+    print("P(A) is omitted here on purpose: it is a letter diagnostic, not a slice of this partition.")
+    print("Coverage = middle + right bars. Flip rate = left bar.")"""
     ),
     md(
-        """### Dual-order consistency (coverage–accuracy tradeoff)
+        """### Dual-order scoring (Zheng et al. §3.4)
 
 > A conservative approach is to call a judge twice by swapping the order of two answers and only declare a win when an answer is preferred in both orders. If the results are inconsistent after swapping, we can call it a tie.
 
 — Zheng et al., §3.4
 
-**Coverage.** Fraction of pairs with a declared winner = content agreement across orders = 1 − flip rate. **Accuracy conditional on consistency.** Accuracy vs the human label, restricted to those pairs. The rule can raise or lower point accuracy relative to scoring every baseline call; the inconsistent pairs are exactly those order could move. Overlapping Wilson intervals mean this sample does not separate the two accuracies cleanly."""
+Applied to the partition above:
+
+- Left bar → **tie** (no winner recorded).
+- Middle + right bars → **declared winner** (coverage).
+- Middle / (middle + right) → **accuracy among declared winners**.
+
+**Coverage–accuracy tradeoff.** Relative to scoring every baseline call, dual-order can raise or lower the accuracy point estimate because it drops the left bar and keeps the right bar. Overlapping Wilson intervals for “accuracy among consistent” vs “accuracy on all baseline calls” mean this sample does not show a clean accuracy gain from the rule—only that 30% of pairs were refused as order-dependent."""
     ),
     code(
         """if qwen_df is None:
     print("No 7B judgments.")
 else:
     stats = position_stats(qwen_df)
-    n = stats["agreement"].n
-    print(f"Coverage (declared winners): {stats['n_consistent']} / {n}")
-    print("Coverage rate (= 1 − flip rate):", fmt_rate(stats["agreement"]))
-    print("Accuracy | consistent:          ", fmt_rate(stats["accuracy_consistent"]))
     base = qwen_df[qwen_df.condition == "baseline"]
-    print("Accuracy | all baseline calls:  ", fmt_rate(accuracy_rate(base)))
+    acc_all = accuracy_rate(base)
+    acc_c = stats["accuracy_consistent"]
+    print("Accuracy on every baseline call:     ", fmt_rate(acc_all))
+    print("Accuracy among consistent pairs:     ", fmt_rate(acc_c))
+    print(f"Pairs scored under dual-order:       {stats['n_consistent']} / {stats['agreement'].n}")
     print()
-    print("What the intervals support: the fraction of pairs refused as ties, and accuracy on the rest.")
-    print("What they do not support alone: a claim that dual-order strictly improves accuracy on this n.")"""
+    lo = max(acc_all.ci_low, acc_c.ci_low)
+    hi = min(acc_all.ci_high, acc_c.ci_high)
+    if lo <= hi:
+        print("The two accuracy intervals overlap on this n — no clean separation.")
+    else:
+        print("The two accuracy intervals do not overlap on this n.")"""
     ),
     md(
         """### Optional — reinforce the ignore-order instruction
@@ -692,7 +758,7 @@ for p in pairs[:N_LIVE]:
     print(f"{p.id:<12} {rb['content']:>12} {rs['content']:>12} {'YES' if flip else 'no':>5}")
 close_client(client)
 print("Flip rate with the extra sentence:", fmt_rate(rate(n_flip, n_ok)) if n_ok else "n/a")
-print("(N_LIVE pairs only; the figure above is the published full-sample estimate.)")""",
+print("(N_LIVE pairs only; the partition figure above is the published full-sample estimate.)")""",
         live=True,
     ),
     md(

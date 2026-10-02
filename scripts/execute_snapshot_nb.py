@@ -44,13 +44,18 @@ def main() -> None:
     mpl_dir = ROOT / ".mplconfig"
     mpl_dir.mkdir(exist_ok=True)
     os.environ["MPLCONFIGDIR"] = str(mpl_dir)
+    # Workspace-local kernelspec prefix avoids fighting a locked copy under .venv.
+    jupyter_prefix = ROOT / ".jupyter-local"
+    jupyter_prefix.mkdir(exist_ok=True)
+    os.environ["JUPYTER_PATH"] = str(jupyter_prefix / "share" / "jupyter")
     subprocess.check_call(
         [
             sys.executable,
             "-m",
             "ipykernel",
             "install",
-            "--sys-prefix",
+            "--prefix",
+            str(jupyter_prefix),
             "--name",
             KERNEL,
             "--display-name",

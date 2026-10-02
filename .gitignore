@@ -18,3 +18,7 @@ results/**/*.jsonl
 !results/local/sample_judgments.jsonl
 *.log
 .mplconfig/
+.jupyter-local/
+.jupyter-data/
+.jupyter-data-prefix/
+.ipython/
